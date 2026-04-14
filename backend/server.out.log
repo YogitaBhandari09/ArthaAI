@@ -1,0 +1,2 @@
+Artha backend running on port 3000
+POST /api/chat 500 107 - 47.785 ms

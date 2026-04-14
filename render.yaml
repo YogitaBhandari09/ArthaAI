@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: artha-ai-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: CORS_ORIGIN
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ML_SERVICE_URL
+        sync: false
+
+  - type: web
+    name: artha-ai-ml
+    env: python
+    plan: free
+    rootDir: ml_model
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py

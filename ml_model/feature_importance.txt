@@ -1,0 +1,7 @@
+Feature importance ranking (higher means more influence):
+- risk_encoded: 0.4761
+- age: 0.3402
+- goal_encoded: 0.1360
+- savings: 0.0247
+- monthly_income: 0.0228
+- dependents: 0.0002
