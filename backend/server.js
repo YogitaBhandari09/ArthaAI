@@ -12,11 +12,20 @@ dotenv.config();
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
-const CORS_ORIGIN = process.env.CORS_ORIGIN || "http://localhost:5173";
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
+const ALLOWED_ORIGINS = CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean);
+
+const corsOriginHandler = (origin, callback) => {
+  if (!origin) return callback(null, true);
+  if (ALLOWED_ORIGINS.includes("*") || ALLOWED_ORIGINS.includes(origin)) {
+    return callback(null, true);
+  }
+  return callback(new Error("Not allowed by CORS"));
+};
 
 app.disable("x-powered-by");
 app.use(helmet());
-app.use(cors({ origin: CORS_ORIGIN }));
+app.use(cors({ origin: corsOriginHandler }));
 app.use(express.json({ limit: "1mb" }));
 app.use(morgan("tiny"));
 app.use("/api", rateLimit);
@@ -46,6 +55,10 @@ app.use((error, _request, response, _next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Artha backend running on port ${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Artha backend running on port ${PORT}`);
+  });
+}
+
+export default app;

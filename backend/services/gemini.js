@@ -23,13 +23,42 @@ const parseJson = (raw) => {
     const start = cleaned.indexOf("{");
     const end = cleaned.lastIndexOf("}");
     if (start === -1 || end === -1 || end <= start) {
-      throw new GeminiError("Invalid JSON response from Gemini", 502, cleaned);
+      const fallbackReply = cleaned
+        .replace(/[{}]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 220);
+      return {
+        reply: fallbackReply || "माफ़ कीजिए, मैं अभी साफ़ उत्तर नहीं दे पाया।",
+        product: "None",
+        bank: "",
+        rate: 0,
+        amount: 0,
+        months: 0,
+        returns: 0,
+        tip: "",
+      };
     }
     const subset = cleaned.slice(start, end + 1);
     try {
       return JSON.parse(subset);
     } catch {
-      throw new GeminiError("Failed to parse Gemini JSON response", 502, cleaned);
+      const replyMatch = cleaned.match(/"reply"\s*:\s*"([^"]*)/i);
+      const fallbackReply = (replyMatch?.[1] || cleaned)
+        .replace(/[{}]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 220);
+      return {
+        reply: fallbackReply || "माफ़ कीजिए, मैं अभी साफ़ उत्तर नहीं दे पाया।",
+        product: "None",
+        bank: "",
+        rate: 0,
+        amount: 0,
+        months: 0,
+        returns: 0,
+        tip: "",
+      };
     }
   }
 };
