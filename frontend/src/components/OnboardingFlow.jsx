@@ -1,22 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Mic, MicOff, SkipForward } from "lucide-react";
 import useVoice from "../hooks/useVoice";
 import useSpeech from "../hooks/useSpeech";
-
-const STEPS = [
-  { key: "name", question: "नमस्ते! आपका नाम क्या है?", placeholder: "अपना नाम लिखें" },
-  { key: "age", question: "आपकी उम्र कितनी है?", placeholder: "उम्र लिखें" },
-  { key: "income", question: "हर महीने कितना कमाते हैं? रुपये में बताएं", placeholder: "मासिक आय लिखें" },
-  {
-    key: "goal",
-    question: "आप पैसा क्यों बचाना चाहते हैं?",
-    chips: [
-      { label: "आपातकाल के लिए", value: "emergency" },
-      { label: "बच्चों की पढ़ाई", value: "education" },
-      { label: "रिटायरमेंट", value: "retirement" },
-    ],
-  },
-];
+import { getLangCopy } from "../i18n/copy";
 
 const parseNumeric = (value) => {
   const digits = String(value || "").replace(/\D/g, "");
@@ -24,6 +10,9 @@ const parseNumeric = (value) => {
 };
 
 export default function OnboardingFlow({ onComplete, onSkip, lang = "hi-IN" }) {
+  const copy = getLangCopy(lang);
+  const steps = copy.onboarding.steps;
+
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({
     name: "",
@@ -32,10 +21,11 @@ export default function OnboardingFlow({ onComplete, onSkip, lang = "hi-IN" }) {
     goal: "",
   });
   const [input, setInput] = useState("");
+
   const { listening, transcript, startListening, stopListening, supported } = useVoice(lang);
   const { speak, stop } = useSpeech(lang);
 
-  const current = STEPS[step];
+  const current = steps[step];
 
   useEffect(() => {
     setInput(answers[current.key] || "");
@@ -53,7 +43,7 @@ export default function OnboardingFlow({ onComplete, onSkip, lang = "hi-IN" }) {
     setInput(transcript);
   }, [current.key, transcript]);
 
-  const progress = useMemo(() => ((step + 1) / STEPS.length) * 100, [step]);
+  const progress = useMemo(() => ((step + 1) / steps.length) * 100, [step, steps.length]);
 
   const canContinue = useMemo(() => {
     if (current.key === "goal") return Boolean(answers.goal || input);
@@ -77,7 +67,7 @@ export default function OnboardingFlow({ onComplete, onSkip, lang = "hi-IN" }) {
     };
     setAnswers(updated);
 
-    if (step < STEPS.length - 1) {
+    if (step < steps.length - 1) {
       setStep((previous) => previous + 1);
       return;
     }
@@ -129,7 +119,7 @@ export default function OnboardingFlow({ onComplete, onSkip, lang = "hi-IN" }) {
       <div style={{ marginBottom: "18px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
           <div style={{ fontWeight: 700, fontSize: "15px" }}>
-            प्रोफाइल सेटअप ({step + 1}/4)
+            {copy.onboarding.profileSetup} ({step + 1}/{steps.length})
           </div>
           <button
             onClick={onSkip}
@@ -145,7 +135,7 @@ export default function OnboardingFlow({ onComplete, onSkip, lang = "hi-IN" }) {
             }}
           >
             <SkipForward size={12} />
-            Skip
+            {copy.onboarding.skip}
           </button>
         </div>
         <div style={{ height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "999px", overflow: "hidden" }}>
@@ -186,7 +176,7 @@ export default function OnboardingFlow({ onComplete, onSkip, lang = "hi-IN" }) {
               fontWeight: 800,
             }}
           >
-            अ
+            ₹
           </div>
           <p style={{ fontSize: "15px", lineHeight: 1.5 }}>{current.question}</p>
         </div>
@@ -265,13 +255,11 @@ export default function OnboardingFlow({ onComplete, onSkip, lang = "hi-IN" }) {
               fontSize: "14px",
             }}
           >
-            {step === STEPS.length - 1 ? "शुरू करें" : "अगला"}
+            {step === steps.length - 1 ? copy.onboarding.start : copy.onboarding.next}
           </button>
         </div>
 
-        {!supported && (
-          <p style={{ fontSize: "12px", color: "#f59e0b" }}>इस ब्राउज़र में voice input उपलब्ध नहीं है। टाइप करके जारी रखें।</p>
-        )}
+        {!supported && <p style={{ fontSize: "12px", color: "#f59e0b" }}>{copy.onboarding.noVoice}</p>}
       </div>
     </div>
   );

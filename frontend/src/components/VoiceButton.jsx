@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+﻿import { useEffect, useRef } from "react";
 import { Mic, MicOff } from "lucide-react";
 
 export default function VoiceButton({
@@ -7,6 +7,7 @@ export default function VoiceButton({
   supported,
   showWaveform = true,
   showButton = true,
+  listeningText = "Listening...",
 }) {
   const waveRef = useRef(null);
   const animFrameRef = useRef(null);
@@ -72,7 +73,7 @@ export default function VoiceButton({
         <div style={{ textAlign: "center", marginBottom: "10px", animation: "fadeUp 0.2s ease" }}>
           <canvas ref={waveRef} width={260} height={40} style={{ display: "inline-block" }} />
           <div style={{ fontSize: "12px", color: "#f0a500", marginTop: "3px", animation: "dotBounce 1s infinite" }}>
-            सुन रहा हूँ...
+            {listeningText}
           </div>
         </div>
       )}

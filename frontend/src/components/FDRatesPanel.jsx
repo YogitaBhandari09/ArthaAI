@@ -1,7 +1,14 @@
-import { X } from "lucide-react";
+﻿import { X } from "lucide-react";
 import { FD_RATES } from "../utils/fdCalculator";
+import { getLangCopy } from "../i18n/copy";
 
-export default function FDRatesPanel({ onClose }) {
+export default function FDRatesPanel({ onClose, lang = "hi-IN" }) {
+  const copy = getLangCopy(lang).ratesPanel;
+  const monthLabel = new Date().toLocaleDateString(lang, {
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <div
       style={{
@@ -26,8 +33,8 @@ export default function FDRatesPanel({ onClose }) {
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: "16px", color: "#e8eaf0" }}>📈 आज की FD दरें</div>
-            <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>April 2026 · 12 महीने की FD</div>
+            <div style={{ fontWeight: 700, fontSize: "16px", color: "#e8eaf0" }}>{copy.title}</div>
+            <div style={{ fontSize: "11px", color: "#6b7280", marginTop: "2px" }}>{copy.subtitle(monthLabel)}</div>
           </div>
           <button
             onClick={onClose}
@@ -67,7 +74,7 @@ export default function FDRatesPanel({ onClose }) {
               <div style={{ fontSize: "13px", color: "#e8eaf0", fontWeight: index === 0 ? 600 : 400 }}>
                 {rateItem.name}
               </div>
-              {rateItem.badge && <div style={{ fontSize: "10px", color: rateItem.color, marginTop: "2px" }}>★ {rateItem.badge}</div>}
+              {rateItem.badge && <div style={{ fontSize: "10px", color: rateItem.color, marginTop: "2px" }}>* {rateItem.badge}</div>}
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "3px" }}>
               <span style={{ fontSize: "20px", fontWeight: 800, color: rateItem.color }}>{rateItem.rate}</span>
@@ -77,7 +84,7 @@ export default function FDRatesPanel({ onClose }) {
         ))}
 
         <div style={{ fontSize: "11px", color: "#374151", textAlign: "center", marginTop: "10px" }}>
-          * DICGC के तहत ₹5 लाख तक बीमित
+          {copy.insured}
         </div>
       </div>
     </div>

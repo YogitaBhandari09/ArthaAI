@@ -1,191 +1,134 @@
-# अर्थ AI — Voice-First Financial Copilot for Bharat
+﻿# Artha AI
 
-> **Banner idea:** A smartphone chat UI in dark navy + gold, with a mic pulse and Hindi bubbles saying "मेरे पास ₹10,000 है, क्या करूँ?"
+Voice-first financial copilot for Bharat users.
 
-**Tagline:** *"Mere paas 10,000 hai, kya karu? — Artha knows the answer."*
+[![Live MVP](https://img.shields.io/badge/Live_MVP-Open_Now-10b981?style=for-the-badge)](https://frontend-psi-smoky-62.vercel.app)
+[![Frontend](https://img.shields.io/badge/Frontend-Vercel-000000?style=for-the-badge&logo=vercel)](https://frontend-psi-smoky-62.vercel.app)
+[![Backend API](https://img.shields.io/badge/Backend-API-2563eb?style=for-the-badge)](https://backend-eta-two-89.vercel.app/api/health)
+[![ML Service](https://img.shields.io/badge/ML_Service-Online-f59e0b?style=for-the-badge)](https://mlmodel-lime.vercel.app/health)
 
----
+## Live Demo
 
-## Problem
+- MVP: **https://frontend-psi-smoky-62.vercel.app**
+- Backend health: `https://backend-eta-two-89.vercel.app/api/health`
+- Backend status: `https://backend-eta-two-89.vercel.app/api/status`
+- ML health: `https://mlmodel-lime.vercel.app/health`
 
-India has massive fintech growth, but access + understanding are still unequal:
+## Why Artha AI
 
-- 500M+ people have historically remained underbanked/financially excluded across low-income and rural segments.
-- Financial literacy remains low (widely cited national estimates around ~1 in 4 adults being financially literate).
-- Most fintech experiences are text-heavy, English-first, and intimidating for first-time users.
+Many first-time investors do not need complicated finance dashboards. They need:
 
-For rural users, the real question is simple: **"मेरे पैसे का सही फैसला क्या है?"**
+- simple guidance in their own language
+- voice-first interaction
+- practical next steps, not only product rates
+- reliable responses even when AI services are unavailable
 
----
+Artha AI solves this with a hybrid architecture: **LLM + ML + safe rule-based fallback**.
 
-## Solution
+## Key Highlights
 
-**Artha AI** is a voice-first Hindi financial copilot designed for Bharat users:
-
-- WhatsApp-style conversational UI
+- Multilingual experience: **Hindi, Bengali, Tamil**
 - Voice input + voice output
-- Simple Hindi guidance (not jargon-heavy finance language)
-- FD-focused actionable advice cards
-- ML-backed recommendation engine with fallback logic
+- Voice Assist toggle for low-literacy users
+- FD-focused recommendation cards with maturity and profit
+- What-if FD simulator (amount, rate, tenure)
+- Live system status bar (Backend / ML / AI)
+- Resilient fallback mode when AI fails or quota is hit
+- Deployed end-to-end on Vercel
 
----
+## Product Experience
 
-## Features
-
-- 🎤 Voice-first onboarding (नाम, उम्र, आय, लक्ष्य)
-- 💬 Hindi conversational AI chat
-- 🧠 ML recommendation microservice (risk + profile based)
-- 📊 FD calculator + growth chart + maturity comparison
-- 🏦 Live-style FD rates panel
-- 🌐 Language switcher (हि / বাং / தமி)
-- 🛡️ Backend rate limiting + secure API routing
-- ⚙️ Graceful degradation when ML or AI service fails
-
----
+1. User completes quick onboarding (name, age, income, goal)
+2. User speaks or types in selected language
+3. Backend gets ML recommendation + confidence
+4. LLM generates structured advice with reasoning and action steps
+5. If LLM is weak/unavailable, fallback engine returns safe localized guidance
+6. UI reads answer aloud and shows actionable investment card
 
 ## Architecture
 
 ```text
 [React + Vite Frontend]
-        |
-        |  /api/chat, /api/calculate, /api/recommend
-        v
+      |
+      | /api/chat /api/recommend /api/calculate /api/status
+      v
 [Node.js + Express Backend]
-   |             |
-   |             +--> [Google Gemini 1.5 Flash]
+   |                |
+   |                +--> [Gemini API]
    |
    +--> [Flask ML Service]
             |
-            +--> [Trained model.pkl (RF/GB best model)]
+            +--> [Trained model.pkl]
 ```
-
----
 
 ## Tech Stack
 
-| Layer | Stack |
-|---|---|
-| Frontend | React, Vite, lucide-react |
-| Backend API | Node.js, Express, Helmet, CORS |
-| LLM | Google Gemini 1.5 Flash |
-| ML Service | Python, Flask, scikit-learn |
-| ML Models | RandomForestClassifier, GradientBoostingClassifier |
-| Deployment Targets | Vercel (frontend), Render (backend + ML) |
+- Frontend: React, Vite, Lucide
+- Backend: Node.js, Express, Helmet, CORS
+- LLM: Google Gemini
+- ML Service: Python, Flask, scikit-learn
+- Model Artifact: `ml_model/model.pkl`
+- Deployment: Vercel (frontend, backend, ML)
 
----
+## Reliability and Safety
 
-## Quick Start
+- Language-aware response enforcement (`hi-IN`, `bn-IN`, `ta-IN`)
+- Structured JSON output contract from LLM
+- Weak-output detection and guarded fallback responses
+- API status endpoint with ML reachability + latency
+- User-visible fallback badge for transparency
+
+## API Endpoints
+
+### `POST /api/chat`
+Returns localized financial guidance with card metadata.
+
+### `POST /api/recommend`
+Returns recommendation, confidence, and tenure.
+
+### `POST /api/calculate`
+Returns maturity, profit, effective rate, and top bank comparison.
+
+### `GET /api/status`
+Returns backend, ML, and AI configuration health.
+
+## Local Setup
 
 ```bash
 git clone <your-repo-url>
-cd artha-ai
+cd ArthaAI
 npm run install:all
-# Add your GEMINI_API_KEY to backend/.env
 python -m pip install -r ml_model/requirements.txt
-npm run train:ml   # train the ML model first
-npm run dev        # starts frontend + backend + ML
+npm run train:ml
+npm run dev
 ```
 
----
+Create `backend/.env`:
 
-## API Documentation
-
-### 1) `POST /api/chat`
-- Input:
-```json
-{
-  "message": "मेरे पास 10000 हैं, क्या करूँ?",
-  "profile": { "age": 30, "income": 20000, "savings": 10000, "goal": "emergency", "risk": "low" }
-}
-```
-- Output:
-```json
-{
-  "reply": "....",
-  "product": "FD",
-  "bank": "Unity Small Finance Bank",
-  "rate": 9,
-  "amount": 10000,
-  "months": 12,
-  "returns": 10938,
-  "tip": "....",
-  "mlConfidence": 0.82
-}
+```env
+GEMINI_API_KEY=your_key
+ML_SERVICE_URL=http://localhost:5001
+CORS_ORIGIN=http://localhost:5173
+GEMINI_MODEL=gemini-2.0-flash
 ```
 
-### 2) `POST /api/calculate`
-- Input:
-```json
-{ "amount": 10000, "rate": 8.5, "months": 12 }
-```
-- Output:
-```json
-{
-  "maturity": 10884,
-  "profit": 884,
-  "effectiveRate": 0.0884,
-  "comparison": [
-    { "bank": "Unity Small Finance Bank", "rate": 9, "maturity": 10938 }
-  ]
-}
+## Project Structure
+
+```text
+frontend/
+backend/
+ml_model/
+README.md
 ```
 
-### 3) `POST /api/recommend`
-- Input:
-```json
-{
-  "profile": { "age": 32, "income": 22000, "savings": 8000, "goal": "emergency", "risk": "low" }
-}
-```
-- Output:
-```json
-{
-  "recommendation": "FD_long",
-  "confidence": 0.95,
-  "tenure_months": 18,
-  "reasoning": "..."
-}
-```
+## Submission Ready Notes
 
----
+- Solo-friendly MVP
+- Working deployed URL
+- Real code and live architecture
+- Clear user problem fit in fintech inclusion
+- Strong demo narrative with multilingual voice-first UX
 
-## ML Model
+## Live Link for Evaluators
 
-- **Synthetic dataset size:** 1000 user profiles
-- **Features used:** age, monthly_income, savings, goal, risk_tolerance, dependents
-- **Models trained:** RandomForest (150 trees, depth 8) vs GradientBoosting
-- **Best model selected:** GradientBoostingClassifier
-- **Observed test accuracy:** **0.9700**
-- **Artifacts:** `ml_model/model.pkl`, `ml_model/feature_importance.txt`
-
----
-
-## Demo
-
-- `docs/screenshots/chat-home.png` (placeholder)
-- `docs/screenshots/advice-card.png` (placeholder)
-- `docs/screenshots/onboarding-voice.png` (placeholder)
-
----
-
-## Hackathon Context
-
-Built for **Blostem AI Builder Hackathon** as a practical AI solution for inclusive financial guidance in rural India.
-
----
-
-## Deployment (Free Tier)
-
-- **Frontend:** Deploy `frontend/` to Vercel
-- **Backend:** Deploy `backend/` to Render Web Service
-- **ML Service:** Deploy `ml_model/` to Render Web Service
-- Set backend env:
-  - `GEMINI_API_KEY`
-  - `ML_SERVICE_URL` (Render URL of ML service)
-  - `CORS_ORIGIN` (Vercel frontend URL)
-
----
-
-## License
-
-MIT
+**https://frontend-psi-smoky-62.vercel.app**

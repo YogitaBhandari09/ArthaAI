@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Send, TrendingUp } from "lucide-react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { Calculator, Send, TrendingUp, Volume2, VolumeX } from "lucide-react";
 import AdviceCard from "./AdviceCard";
 import FDRatesPanel from "./FDRatesPanel";
+import SystemStatusBar from "./SystemStatusBar";
 import VoiceButton from "./VoiceButton";
 import OnboardingFlow from "./OnboardingFlow";
+import WhatIfPanel from "./WhatIfPanel";
 import useVoice from "../hooks/useVoice";
 import useSpeech from "../hooks/useSpeech";
 import useProfile from "../hooks/useProfile";
-import { sendChat } from "../services/api";
+import { getSystemStatus, sendChat } from "../services/api";
+import { getLangCopy } from "../i18n/copy";
 
 const LANGS = [
   { code: "hi-IN", short: "हि", label: "Hindi" },
@@ -15,12 +18,12 @@ const LANGS = [
   { code: "ta-IN", short: "தமி", label: "Tamil" },
 ];
 
-const QUICK_CHIPS = [
-  "मेरे पास ₹10,000 हैं, क्या करूँ?",
-  "FD क्या होती है?",
-  "₹25,000 को 12 महीने के लिए कहाँ रखूँ?",
-  "SBI और Suryoday FD में क्या फ़र्क है?",
-];
+const VOICE_ASSIST_KEY = "artha_voice_assist_v1";
+const TTS_WARNING = {
+  "hi-IN": "इस डिवाइस में चुनी हुई भाषा की voice उपलब्ध नहीं है, इसलिए आवाज़ अंग्रेज़ी जैसी लग सकती है।",
+  "bn-IN": "এই ডিভাইসে নির্বাচিত ভাষার voice নেই, তাই উচ্চারণ ইংরেজির মতো শোনাতে পারে।",
+  "ta-IN": "இந்த சாதனத்தில் தேர்ந்தெடுத்த மொழிக்கான voice இல்லை, அதனால் ஆங்கில உச்சரிப்பு போல கேட்கலாம்.",
+};
 
 const KEYFRAMES = `
   @keyframes pulseRing {
@@ -54,28 +57,25 @@ const KEYFRAMES = `
   button { cursor: pointer; border: none; background: none; }
 `;
 
-const now = () =>
-  new Date().toLocaleTimeString("hi-IN", {
+const now = (locale) =>
+  new Date().toLocaleTimeString(locale || "hi-IN", {
     hour: "2-digit",
     minute: "2-digit",
   });
 
-const buildWelcomeText = (name) =>
-  name
-    ? `नमस्ते ${name}! मैं अर्थ हूँ — आपका पैसों का दोस्त। 🙏\n\nआप हिंदी में बोलें या टाइप करें। मैं आसान भाषा में सही सलाह दूँगा।`
-    : "नमस्ते! मैं अर्थ हूँ — आपका अपना पैसों का दोस्त। 🙏\n\nहिंदी में बोलें या टाइप करें। मैं बताऊँगा कि आपके पैसों के लिए सबसे सही क्या है।";
+const buildWelcomeText = (name, copy) => (name ? copy.app.welcomeNamed(name) : copy.app.welcomeAnon);
 
-const buildInitialMessages = (name) => [
+const buildInitialMessages = (name, copy, locale) => [
   {
     id: 1,
     type: "ai",
-    text: buildWelcomeText(name),
+    text: buildWelcomeText(name, copy),
     card: null,
-    time: now(),
+    time: now(locale),
   },
 ];
 
-function MessageBubble({ message }) {
+function MessageBubble({ message, langCode, fallbackLabel }) {
   if (message.type === "thinking") {
     return (
       <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: "14px", animation: "slideLeft 0.3s ease" }}>
@@ -134,7 +134,7 @@ function MessageBubble({ message }) {
               marginBottom: "5px",
             }}
           >
-            अ
+            ₹
           </div>
         )}
         <div
@@ -146,7 +146,23 @@ function MessageBubble({ message }) {
           }}
         >
           <p style={{ color: "#e8eaf0", fontSize: "14px", lineHeight: "1.65", whiteSpace: "pre-wrap" }}>{message.text}</p>
-          {message.card && <AdviceCard card={message.card} />}
+          {!isUser && message.fallback && (
+            <div
+              style={{
+                marginTop: "7px",
+                fontSize: "11px",
+                color: "#f59e0b",
+                padding: "4px 8px",
+                borderRadius: "999px",
+                display: "inline-block",
+                border: "1px solid rgba(245,158,11,0.3)",
+                background: "rgba(245,158,11,0.08)",
+              }}
+            >
+              {fallbackLabel}
+            </div>
+          )}
+          {message.card && <AdviceCard card={message.card} lang={langCode} />}
         </div>
         <div style={{ fontSize: "11px", color: "#374151", marginTop: "4px", textAlign: isUser ? "right" : "left" }}>{message.time}</div>
       </div>
@@ -155,16 +171,27 @@ function MessageBubble({ message }) {
 }
 
 export default function ArthaChat() {
-  const [messages, setMessages] = useState(buildInitialMessages(""));
+  const [lang, setLang] = useState(LANGS[0]);
+  const copy = useMemo(() => getLangCopy(lang.code), [lang.code]);
+
+  const [messages, setMessages] = useState(() => buildInitialMessages("", copy, lang.code));
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [lang, setLang] = useState(LANGS[0]);
   const [showRates, setShowRates] = useState(false);
+  const [showWhatIf, setShowWhatIf] = useState(false);
+  const [voiceAssist, setVoiceAssist] = useState(true);
+  const [systemStatus, setSystemStatus] = useState({
+    status: "unknown",
+    backend: { status: "unknown" },
+    ml: { status: "unknown" },
+    ai: { configured: false },
+  });
 
   const { profile, updateProfile, isComplete } = useProfile();
   const { listening, transcript, startListening, stopListening, supported } = useVoice(lang.code);
-  const { speak, stop } = useSpeech(lang.code);
+  const { speak, stop, hasLanguageVoice } = useSpeech(lang.code);
   const chatEndRef = useRef(null);
+  const lastSpokenMessageId = useRef(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -175,10 +202,63 @@ export default function ArthaChat() {
   }, [transcript]);
 
   useEffect(() => {
+    const saved = window.localStorage.getItem(VOICE_ASSIST_KEY);
+    if (saved === "off") {
+      setVoiceAssist(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(VOICE_ASSIST_KEY, voiceAssist ? "on" : "off");
+    if (!voiceAssist) stop();
+  }, [stop, voiceAssist]);
+
+  useEffect(() => {
     if (isComplete) {
-      setMessages(buildInitialMessages(profile.name));
+      const nextMessages = buildInitialMessages(profile.name, getLangCopy(lang.code), lang.code);
+      setMessages(nextMessages);
+      lastSpokenMessageId.current = null;
     }
   }, [isComplete, profile.name]);
+
+  useEffect(() => {
+    if (!voiceAssist) return;
+    const latest = messages[messages.length - 1];
+    if (!latest || latest.type !== "ai") return;
+    if (lastSpokenMessageId.current === latest.id) return;
+
+    lastSpokenMessageId.current = latest.id;
+    speak(latest.text);
+  }, [messages, speak, voiceAssist]);
+
+  useEffect(() => {
+    let active = true;
+
+    const checkStatus = async () => {
+      const response = await getSystemStatus();
+      if (!active) return;
+
+      if (response.ok && response.data) {
+        setSystemStatus(response.data);
+        return;
+      }
+
+      setSystemStatus({
+        status: "down",
+        backend: { status: "down" },
+        ml: { status: "down" },
+        ai: { configured: false },
+      });
+    };
+
+    checkStatus();
+    const timer = setInterval(checkStatus, 45000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   const toggleMic = () => {
     if (!supported) return;
@@ -197,8 +277,9 @@ export default function ArthaChat() {
       goal: profile.goal || "",
       risk: profile.risk || "low",
       name: profile.name || "",
+      language: lang.code,
     }),
-    [profile]
+    [profile, lang.code]
   );
 
   const sendMessage = async (text) => {
@@ -208,7 +289,7 @@ export default function ArthaChat() {
     stopListening();
     stop();
 
-    const timestamp = now();
+    const timestamp = now(lang.code);
     const userId = Date.now();
     const thinkingId = userId + 1;
 
@@ -223,19 +304,18 @@ export default function ArthaChat() {
         const backendError = String(response.error || "");
         const quotaError = response.status === 429 || backendError.toLowerCase().includes("quota");
         const errorText = quotaError
-          ? "अभी AI सेवा की सीमा पूरी हो गई है। कृपया थोड़ी देर बाद फिर कोशिश करें।"
+          ? copy.errors.quota
           : response.status === 0
-            ? "सर्वर से कनेक्शन नहीं हो पाया। कृपया इंटरनेट या backend सेवा जांचें।"
-            : "माफ़ करें, अभी दिक्कत है। दोबारा कोशिश करें।";
+            ? copy.errors.network
+            : copy.errors.generic;
 
-        const failMessage = { id: thinkingId, type: "ai", text: errorText, card: null, time: timestamp };
+        const failMessage = { id: thinkingId, type: "ai", text: errorText, card: null, fallback: true, time: timestamp };
         setMessages((previous) => previous.map((item) => (item.id === thinkingId ? failMessage : item)));
-        speak(errorText);
         return;
       }
 
       const payload = response.data || {};
-      const aiText = payload.reply || "माफ़ करें, कुछ गड़बड़ हुई।";
+      const aiText = payload.reply || copy.errors.unknown;
       const card =
         payload.product && payload.product !== "None"
           ? {
@@ -249,19 +329,25 @@ export default function ArthaChat() {
             }
           : null;
 
-      const aiMessage = { id: thinkingId, type: "ai", text: aiText, card, time: timestamp };
+      const aiMessage = {
+        id: thinkingId,
+        type: "ai",
+        text: aiText,
+        card,
+        fallback: Boolean(payload.fallback),
+        time: timestamp,
+      };
       setMessages((previous) => previous.map((item) => (item.id === thinkingId ? aiMessage : item)));
-      speak(aiText);
     } catch {
       const failMessage = {
         id: thinkingId,
         type: "ai",
-        text: "माफ़ करें, अभी दिक्कत है। दोबारा कोशिश करें।",
+        text: copy.errors.generic,
         card: null,
+        fallback: true,
         time: timestamp,
       };
       setMessages((previous) => previous.map((item) => (item.id === thinkingId ? failMessage : item)));
-      speak(failMessage.text);
     } finally {
       setLoading(false);
     }
@@ -273,7 +359,7 @@ export default function ArthaChat() {
 
   const handleOnboardingSkip = () => {
     updateProfile({
-      name: "दोस्त",
+      name: copy.app.skipName,
       age: 30,
       income: 15000,
       savings: 0,
@@ -359,12 +445,12 @@ export default function ArthaChat() {
             ₹
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: "15px", lineHeight: "1.15", letterSpacing: "-0.01em" }}>अर्थ AI</div>
-            <div style={{ fontSize: "11px", color: "#4b5563" }}>आपका पैसों का दोस्त</div>
+            <div style={{ fontWeight: 700, fontSize: "15px", lineHeight: "1.15", letterSpacing: "-0.01em" }}>{copy.app.title}</div>
+            <div style={{ fontSize: "11px", color: "#4b5563" }}>{copy.app.subtitle}</div>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", flexWrap: "wrap" }}>
           <button
             onClick={() => setShowRates(true)}
             style={{
@@ -380,7 +466,42 @@ export default function ArthaChat() {
               gap: "4px",
             }}
           >
-            <TrendingUp size={12} /> FD Rates
+            <TrendingUp size={12} /> {copy.app.fdRates}
+          </button>
+          <button
+            onClick={() => setShowWhatIf(true)}
+            style={{
+              padding: "5px 10px",
+              background: "rgba(240,165,0,0.08)",
+              border: "1px solid rgba(240,165,0,0.2)",
+              borderRadius: "8px",
+              color: "#f0a500",
+              fontSize: "12px",
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            <Calculator size={12} /> {copy.app.whatIf}
+          </button>
+          <button
+            onClick={() => setVoiceAssist((prev) => !prev)}
+            style={{
+              padding: "5px 10px",
+              background: voiceAssist ? "rgba(59,130,246,0.16)" : "rgba(107,114,128,0.12)",
+              border: `1px solid ${voiceAssist ? "rgba(59,130,246,0.3)" : "rgba(107,114,128,0.3)"}`,
+              borderRadius: "8px",
+              color: voiceAssist ? "#93c5fd" : "#9ca3af",
+              fontSize: "12px",
+              fontWeight: 500,
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+          >
+            {voiceAssist ? <Volume2 size={12} /> : <VolumeX size={12} />}
+            {voiceAssist ? copy.app.voiceAssistOn : copy.app.voiceAssistOff}
           </button>
 
           <div
@@ -412,14 +533,22 @@ export default function ArthaChat() {
         </div>
       </div>
 
-      {showRates && <FDRatesPanel onClose={() => setShowRates(false)} />}
+      {showRates && <FDRatesPanel onClose={() => setShowRates(false)} lang={lang.code} />}
+      {showWhatIf && (
+        <WhatIfPanel
+          onClose={() => setShowWhatIf(false)}
+          defaultAmount={Number(profile.savings) > 0 ? Number(profile.savings) : 10000}
+          lang={lang.code}
+        />
+      )}
+      <SystemStatusBar status={systemStatus} lang={lang.code} />
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 14px", display: "flex", flexDirection: "column" }}>
         {messages.length === 1 && (
           <div style={{ marginBottom: "20px", animation: "fadeUp 0.5s ease" }}>
-            <div style={{ fontSize: "11px", color: "#374151", marginBottom: "8px" }}>ये पूछ सकते हैं:</div>
+            <div style={{ fontSize: "11px", color: "#374151", marginBottom: "8px" }}>{copy.app.quickAsk}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "7px" }}>
-              {QUICK_CHIPS.map((chip) => (
+              {copy.app.quickChips.map((chip) => (
                 <button
                   key={chip}
                   onClick={() => sendMessage(chip)}
@@ -442,7 +571,12 @@ export default function ArthaChat() {
         )}
 
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+          <MessageBubble
+            key={message.id}
+            message={message}
+            langCode={lang.code}
+            fallbackLabel={copy.app.fallbackBadge}
+          />
         ))}
         <div ref={chatEndRef} />
       </div>
@@ -461,6 +595,7 @@ export default function ArthaChat() {
           onToggle={toggleMic}
           showWaveform
           showButton={false}
+          listeningText={copy.voiceButton.listening}
         />
 
         <div style={{ display: "flex", gap: "9px", alignItems: "center" }}>
@@ -471,13 +606,14 @@ export default function ArthaChat() {
               onToggle={toggleMic}
               showWaveform={false}
               showButton
+              listeningText={copy.voiceButton.listening}
             />
           )}
           <input
             value={input}
             onChange={(event) => setInput(event.target.value)}
             onKeyDown={(event) => event.key === "Enter" && sendMessage(input)}
-            placeholder={listening ? "सुन रहा हूँ..." : "हिंदी में लिखें..."}
+            placeholder={listening ? copy.app.listeningPlaceholder : copy.app.typingPlaceholder}
             disabled={loading}
             style={{
               flex: 1,
@@ -525,11 +661,16 @@ export default function ArthaChat() {
 
         {!supported ? (
           <div style={{ textAlign: "center", fontSize: "11px", color: "#f59e0b", marginTop: "8px" }}>
-            इस browser में voice support नहीं है। आप टाइप करके पूछ सकते हैं।
+            {copy.app.noVoice}
           </div>
         ) : (
           <div style={{ textAlign: "center", fontSize: "11px", color: "#1f2937", marginTop: "8px" }}>
-            🎤 माइक दबाएं और {lang.label} में बोलें
+            {copy.app.micHint}
+          </div>
+        )}
+        {supported && !hasLanguageVoice && (
+          <div style={{ textAlign: "center", fontSize: "11px", color: "#f59e0b", marginTop: "6px" }}>
+            {TTS_WARNING[lang.code] || TTS_WARNING["hi-IN"]}
           </div>
         )}
       </div>

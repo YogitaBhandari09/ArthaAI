@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Calculator, ChevronDown } from "lucide-react";
 import GrowthChart from "./GrowthChart";
 import { calculateFDMaturity } from "../utils/fdCalculator";
+import { getLangCopy } from "../i18n/copy";
 
-export default function AdviceCard({ card }) {
+export default function AdviceCard({ card, lang = "hi-IN" }) {
+  const copy = getLangCopy(lang).advice;
   const [open, setOpen] = useState(false);
   const [myAmount, setMyAmount] = useState("");
 
@@ -50,14 +52,16 @@ export default function AdviceCard({ card }) {
             {card.product === "FD" ? "Fixed Deposit" : card.product}
           </div>
           <div style={{ fontSize: "14px", fontWeight: 600, color: "#e8eaf0" }}>
-            {card.bank || "बेस्ट रेट बैंक"}
+            {card.bank || copy.bestRateBank}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: "26px", fontWeight: 800, color: "#10b981", lineHeight: 1 }}>
             {card.rate}%
           </div>
-          <div style={{ fontSize: "10px", color: "#6b7280", marginTop: "2px" }}>p.a. · {card.months} महीने</div>
+          <div style={{ fontSize: "10px", color: "#6b7280", marginTop: "2px" }}>
+            {copy.pa} · {card.months} {copy.monthsLabel}
+          </div>
         </div>
       </div>
 
@@ -75,18 +79,18 @@ export default function AdviceCard({ card }) {
           }}
         >
           <div>
-            <div style={{ fontSize: "10px", color: "#6b7280" }}>आपका पैसा</div>
+            <div style={{ fontSize: "10px", color: "#6b7280" }}>{copy.yourMoney}</div>
             <div style={{ fontSize: "16px", fontWeight: 700, color: "#e8eaf0" }}>
-              ₹{Number(card.amount).toLocaleString("en-IN")}
+              Rs {Number(card.amount).toLocaleString("en-IN")}
             </div>
           </div>
           <div style={{ flex: 1, height: "1px", background: "rgba(16,185,129,0.3)" }} />
           <div style={{ fontSize: "18px", color: "#10b981" }}>→</div>
           <div style={{ flex: 1, height: "1px", background: "rgba(16,185,129,0.3)" }} />
           <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: "10px", color: "#6b7280" }}>{card.months} महीने बाद</div>
+            <div style={{ fontSize: "10px", color: "#6b7280" }}>{copy.afterMonths(card.months)}</div>
             <div style={{ fontSize: "16px", fontWeight: 700, color: "#10b981" }}>
-              ₹{Number(card.returns).toLocaleString("en-IN")}
+              Rs {Number(card.returns).toLocaleString("en-IN")}
             </div>
           </div>
         </div>
@@ -100,7 +104,7 @@ export default function AdviceCard({ card }) {
 
       {profit > 0 && (
         <div style={{ fontSize: "12px", color: "#10b981", marginBottom: "6px" }}>
-          ✓ {card.months} महीने में ₹{profit.toLocaleString("en-IN")} का फ़ायदा
+          {copy.gain(card.months, profit)}
         </div>
       )}
 
@@ -128,18 +132,18 @@ export default function AdviceCard({ card }) {
         }}
       >
         <Calculator size={13} />
-        अपनी राशि से हिसाब लगाएं
+        {copy.calcWithAmount}
         <ChevronDown size={13} style={{ transform: open ? "rotate(180deg)" : "none", transition: "0.2s" }} />
       </button>
 
       {open && (
         <div style={{ marginTop: "10px", animation: "fadeUp 0.25s ease" }}>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <span style={{ color: "#6b7280", fontSize: "15px" }}>₹</span>
+            <span style={{ color: "#6b7280", fontSize: "15px" }}>Rs</span>
             <input
               value={myAmount}
               onChange={(event) => setMyAmount(event.target.value.replace(/\D/g, ""))}
-              placeholder="राशि लिखें"
+              placeholder={copy.amountPlaceholder}
               style={{
                 flex: 1,
                 background: "rgba(255,255,255,0.05)",
@@ -163,13 +167,13 @@ export default function AdviceCard({ card }) {
                 animation: "fadeUp 0.2s ease",
               }}
             >
-              <span style={{ color: "#6b7280", fontSize: "12px" }}>{card.months} महीने बाद: </span>
+              <span style={{ color: "#6b7280", fontSize: "12px" }}>{copy.afterMonths(card.months)}: </span>
               <span style={{ color: "#10b981", fontWeight: 700, fontSize: "16px" }}>
-                ₹{myResult.toLocaleString("en-IN")}
+                Rs {myResult.toLocaleString("en-IN")}
               </span>
               <span style={{ color: "#6b7280", fontSize: "12px" }}>
                 {" "}
-                (+₹{(myResult - Number(myAmount)).toLocaleString("en-IN")})
+                (+Rs {(myResult - Number(myAmount)).toLocaleString("en-IN")})
               </span>
             </div>
           )}

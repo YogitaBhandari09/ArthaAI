@@ -9,20 +9,25 @@ const BASE = import.meta.env.VITE_API_URL || "";
  */
 
 const FRIENDLY_ERRORS = {
-  default: "कुछ तकनीकी दिक्कत हुई है, कृपया दोबारा कोशिश करें।",
-  network: "सर्वर से कनेक्शन नहीं हो पाया। इंटरनेट या सर्वर स्थिति जांचें।",
-  timeout: "रिक्वेस्ट में समय लग रहा है। कृपया फिर से कोशिश करें।",
+  default: "Something went wrong. Please try again.",
+  network: "Unable to connect to server. Check internet or backend status.",
+  timeout: "Request is taking too long. Please retry.",
 };
 
-async function request(path, body, timeoutMs = 10000) {
+async function request(path, { method = "POST", body, timeoutMs = 10000 } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const headers = {};
+    if (body !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
+
     const response = await fetch(`${BASE}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });
 
@@ -56,14 +61,32 @@ async function request(path, body, timeoutMs = 10000) {
 }
 
 export async function sendChat(message, profile) {
-  return request("/api/chat", { message, profile }, 12000);
+  return request("/api/chat", {
+    method: "POST",
+    body: { message, profile },
+    timeoutMs: 12000,
+  });
 }
 
 export async function calculateFD(amount, rate, months) {
-  return request("/api/calculate", { amount, rate, months }, 8000);
+  return request("/api/calculate", {
+    method: "POST",
+    body: { amount, rate, months },
+    timeoutMs: 8000,
+  });
 }
 
 export async function getRecommendation(profile) {
-  return request("/api/recommend", { profile }, 5000);
+  return request("/api/recommend", {
+    method: "POST",
+    body: { profile },
+    timeoutMs: 5000,
+  });
 }
 
+export async function getSystemStatus() {
+  return request("/api/status", {
+    method: "GET",
+    timeoutMs: 6000,
+  });
+}

@@ -7,6 +7,7 @@ import rateLimit from "./middleware/rateLimit.js";
 import chatRoute from "./routes/chat.js";
 import calculateRoute from "./routes/calculate.js";
 import recommendRoute from "./routes/recommend.js";
+import statusRoute from "./routes/status.js";
 
 dotenv.config();
 
@@ -41,6 +42,7 @@ app.get("/api/health", (_, response) => {
 app.use("/api/chat", chatRoute);
 app.use("/api/calculate", calculateRoute);
 app.use("/api/recommend", recommendRoute);
+app.use("/api/status", statusRoute);
 
 app.use((request, response) => {
   response.status(404).json({
